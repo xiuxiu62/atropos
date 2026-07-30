@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 
+	"github.com/xiuxiu62/atropos/internal/checksum"
 	"github.com/xiuxiu62/atropos/internal/ipv4"
 )
 
@@ -62,4 +63,26 @@ func Parse(buf []byte) (Segment, error) {
 
 	s.Payload = buf[headerLen:]
 	return s, nil
+}
+
+func Serialize(src, dst [4]byte, seg Segment) []byte {
+	totalLen := MinHeaderLen + len(seg.Payload)
+	buf := make([]byte, totalLen)
+
+	binary.BigEndian.PutUint16(buf[0:2], seg.SrcPort)
+	binary.BigEndian.PutUint16(buf[2:4], seg.DstPort)
+	binary.BigEndian.PutUint32(buf[4:8], seg.SeqNum)
+	binary.BigEndian.PutUint32(buf[8:12], seg.AckNum)
+	buf[12] = (5 << 4) // data offset = 5 words = 20 bytes, no options
+	buf[13] = seg.Flags
+	binary.BigEndian.PutUint16(buf[14:16], seg.Window)
+	binary.BigEndian.PutUint16(buf[16:18], 0) // checksum placeholder
+	binary.BigEndian.PutUint16(buf[18:20], seg.Urgent)
+	copy(buf[MinHeaderLen:], seg.Payload)
+
+	partial := checksum.PseudoHeaderSum(src, dst, ProtocolNumber, uint16(totalLen))
+	csum := checksum.SumWithPseudo(partial, buf)
+	binary.BigEndian.PutUint16(buf[16:18], csum)
+
+	return buf
 }

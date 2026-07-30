@@ -12,6 +12,6 @@ type Descriptor struct {
 	CIDR string
 }
 
-func Open(desc Descriptor) (Device, error) {
-	return open(desc)
-}
+// func Open(desc Descriptor) (Device, error) {
+// 	return open(desc)
+// }
